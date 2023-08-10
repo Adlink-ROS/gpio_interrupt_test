@@ -26,36 +26,34 @@
     fragment@0 {
       target-path = "/";
         __overlay__ {
-            pps_in: pps_gpio {
-                // gpios = <&tegra_aon_gpio TEGRA234_AON_GPIO(BB, 1) GPIO_ACTIVE_LOW>;
-                // => TEGRA234_AON_GPIO(BB, 1) = 1*8 + 1 = 9
-                // => GPIO_ACTIVE_LOW = 1, GPIO_ACTIVE_HIGH = 0
-                gpios = <&tegra_aon_gpio 9 0>;
-                // interrupts-extended = <&tegra_aon_gpio 9 0>;
-                
-                compatible = "adlink-pps-gpio";
-
-                // Default assert is indicated by a rising edge. 
-                // Uncomment the line below to enable falling-edge assert.
-                // assert-falling-edge;
-
-                status = "okay";
-            };
+          adlink_pps_in {
+            status = "okay";
+            compatible = "adlink-pps-gpio";
             
-            pps_gpio_base0 {
-                // base_gpio0
-                gpios = <&pca9535_2 0 0>;
-                compatible = "adlink-pps-gpio";
-
-                // Default assert is indicated by a rising edge. 
-                // Uncomment the line below to enable falling-edge assert.
-                // assert-falling-edge;
-
-                status = "okay";
-                
-                // It is a base gpio expanded from PAC953x
-                base-gpio;
-            };
+            // gpios = <&tegra_aon_gpio TEGRA234_AON_GPIO(BB, 1) GPIO_ACTIVE_LOW>;
+            // => TEGRA234_AON_GPIO(BB, 1) = 1*8 + 1 = 9
+            // => GPIO_ACTIVE_LOW = 1, GPIO_ACTIVE_HIGH = 0
+            pps-in-gpios = <&tegra_aon_gpio 9 0>;
+            // interrupts-extended = <&tegra_aon_gpio 9 0>;
+              
+            // gpios = <&tegra_aon_gpio TEGRA234_AON_GPIO(BB, 1) GPIO_ACTIVE_LOW>;
+            // => TEGRA234_AON_GPIO(CC, 1) = 2*8 + 1 = 17
+            // => GPIO_ACTIVE_LOW = 1, GPIO_ACTIVE_HIGH = 0
+            pps-out-gpios = <&tegra_aon_gpio 17 0>;
+              
+            // Default assert is indicated by a rising edge. 
+            // Uncomment the line below to enable falling-edge assert.
+            // assert-falling-edge;
+          };
+          
+          // pps_out: pps_gpio_out {
+          //   // gpios = <&tegra_aon_gpio TEGRA234_AON_GPIO(BB, 1) GPIO_ACTIVE_LOW>;
+          //   // => TEGRA234_AON_GPIO(CC, 1) = 2*8 + 1 = 17
+          //   // => GPIO_ACTIVE_LOW = 1, GPIO_ACTIVE_HIGH = 0
+          //   gpios = <&tegra_aon_gpio 17 0>;
+          //   compatible = "adlink-pps-gpio";
+          //   status = "okay";
+          // };
                         
     	    fsync_int_p0 {
         		// gpios = <TEGRA234_MAIN_GPIO(P, 0) 0>;

@@ -2,33 +2,113 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/delay.h>
+#include <linux/of_gpio.h>
 
 #define DRIVER_NAME "adlink-pps-gpio"
-
-s64 g_timestamp_ns;
+#define GPRMC_UART_TX "/dev/ttyTHS0"
+#define KERNEL_BUF_SIZE 128
 
 struct pps_gpio_device_data {
 	int irq;			/* IRQ used as PPS source */
-	struct gpio_desc *gpio_pin;	/* GPIO port descriptors */
+	struct gpio_desc *pps_in_desc;	/* GPIO port descriptors */
+	int pps_out_pinnum;
 	bool assert_falling_edge;
 	bool base_gpio;
+	time64_t time;
+	struct file *fptr;
 };
 
-// Top ISR, deal with real-time task
-static irqreturn_t _irq_top_handler(int irq, void *data)
+static int gprmc_serial_open(struct pps_gpio_device_data *data)
 {
-	/* Get the time stamp */
-	g_timestamp_ns = ktime_get_ns();
-	printk(KERN_INFO "irq=%d, ns=%lld", irq, g_timestamp_ns);
+    data->fptr = filp_open(GPRMC_UART_TX, O_RDWR|O_NOCTTY|O_NONBLOCK, 0);
 
-	return IRQ_HANDLED;
+	if (!data->fptr) {
+		printk("Failed to open %s", GPRMC_UART_TX);
+		return -1;
+	}
+
+	return 0;
 }
 
-// Bottom ISR, run after Top ISR
+static void gprmc_serial_close(struct pps_gpio_device_data *data)
+{
+	filp_close(data->fptr, NULL);
+}
+
+static int gprmc_serial_write(struct pps_gpio_device_data *data,
+		const unsigned char *buf, size_t count)
+{
+	int wlen;
+	loff_t pos = data->fptr->f_pos;
+	mm_segment_t oldfs;
+	oldfs = get_fs();
+	set_fs(KERNEL_DS);
+	
+	wlen = kernel_write(data->fptr, buf, count, &pos);
+	
+	set_fs(oldfs);
+	return wlen;
+}
+
+// Top ISR, deal with the real-time tasks
+static irqreturn_t _irq_top_handler(int irq, void *data)
+{
+	// Get the time stamp
+	struct pps_gpio_device_data *_data = data;
+	_data->time = ktime_get_real_seconds();
+	
+	// Pull high the PPS_OUT
+	if (gpio_is_valid(_data->pps_out_pinnum)) {
+		gpio_set_value(_data->pps_out_pinnum, 1);
+	}
+	
+	return IRQ_WAKE_THREAD; // schedule the bottom half
+}
+
+// Bottom ISR, run the remain tasks after Top ISR
 static irqreturn_t _irq_bottom_handler(int irq, void *data)
 {
-	printk("irq=%d, _irq_bottom_handler, ts_ns=%lld", irq, g_timestamp_ns);
+	struct pps_gpio_device_data *_data = data;
+    char *gprmc_buf;
+    char *tmp_buf;
+    int CRC;
+    int i;
+    int sec, min, hour;
 
+	// Pull low the PPS_OUT after 100us
+	if (gpio_is_valid(_data->pps_out_pinnum)) {
+		udelay(100);
+		gpio_set_value(_data->pps_out_pinnum, 0);
+	}
+
+	// TODO: Do we need spin_lock here? PPS interrupt triggers once a second, will it be preempted?
+	sec = _data->time % 60;
+	min = (_data->time / 60) % 60;
+	hour = (_data->time / 3600) % 24 + (sys_tz.tz_minuteswest / 60);
+	printk("irq=%d, _irq_bottom_handler, %02d:%02d:%02d", irq, hour, min, sec);
+	
+    // Prepare GPRMC msg
+	gprmc_buf = kmalloc(KERNEL_BUF_SIZE, GFP_KERNEL | __GFP_ZERO);
+	tmp_buf = kmalloc(KERNEL_BUF_SIZE, GFP_KERNEL | __GFP_ZERO);
+	if (!gprmc_buf || !tmp_buf) {
+		printk("Failed to allocate memory.");
+	} else {
+        snprintf(tmp_buf, KERNEL_BUF_SIZE, "GPRMC,%02d%02d%02d,A,%s,N,%s,E,022.4,084.4,070423,,A", hour, min, sec, "25.04776", "121.53185");
+        for (i = 0; i < strlen(tmp_buf); i++) {
+            // XOR every character between '$' and '*'
+            CRC = CRC ^ tmp_buf[i];
+        }
+
+		snprintf(gprmc_buf, KERNEL_BUF_SIZE, "$%s*%02X\r\n", tmp_buf, CRC);
+		
+		// Write to UART TX port
+		gprmc_serial_write(data, gprmc_buf, strlen(gprmc_buf));
+		
+		kfree(gprmc_buf);
+		kfree(tmp_buf);
+	}
+	
 	return IRQ_HANDLED;
 }
 
@@ -36,17 +116,26 @@ static irqreturn_t _irq_bottom_handler(int irq, void *data)
 static int pps_gpio_setup(struct device *dev)
 {
 	struct pps_gpio_device_data *data = dev_get_drvdata(dev);
+	struct device_node *node = dev->of_node;
 	
 	data->assert_falling_edge =
 		device_property_read_bool(dev, "assert-falling-edge");
-	
-	data->base_gpio =
-		device_property_read_bool(dev, "base-gpio");
 		
-	data->gpio_pin = devm_gpiod_get(dev, NULL, GPIOD_IN);
-	if (IS_ERR(data->gpio_pin))
-		return dev_err_probe(dev, PTR_ERR(data->gpio_pin),
-				     "failed to request PPS GPIO\n");
+	data->pps_in_desc = devm_gpiod_get(dev, "pps-in", GPIOD_IN);
+	if (IS_ERR(data->pps_in_desc)) {
+		return dev_err_probe(dev, PTR_ERR(data->pps_in_desc),
+				     "failed to request pps-in-gpios");
+	}
+
+	data->pps_out_pinnum = of_get_named_gpio(node, "pps-out-gpios", 0);
+	if (!gpio_is_valid(data->pps_out_pinnum)) {
+		dev_err(dev, "faiiled to request pps-out-gpios");
+		return -1;
+	}
+	gpio_direction_output(data->pps_out_pinnum, 0);
+
+	// open GPRMC_UART_TX
+	gprmc_serial_open(data);
 
 	return 0;
 }
@@ -81,7 +170,7 @@ static int pps_gpio_probe(struct platform_device *pdev)
     }
 
 	/* IRQ setup */
-	ret = gpiod_to_irq(data->gpio_pin);
+	ret = gpiod_to_irq(data->pps_in_desc);
 	if (ret < 0) {
 		dev_err(dev, "failed to map GPIO to IRQ: %d\n", ret);
 		return -EINVAL;
@@ -111,6 +200,9 @@ static int pps_gpio_remove(struct platform_device *pdev)
 	struct pps_gpio_device_data *data = platform_get_drvdata(pdev);
 
 	dev_info(&pdev->dev, "removed IRQ %d as PPS source\n", data->irq);
+	
+	// close GPRMC_UART_TX
+	gprmc_serial_close(data);
 	
 	return 0;
 }

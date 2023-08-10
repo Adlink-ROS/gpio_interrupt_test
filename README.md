@@ -16,6 +16,7 @@ There are two drivers in the repo:
 It will also compile the device tree and configure the overlay.
 
 ```bash
+cd gpio_interrupt_test/src
 make
 
 # Please reboot so that the new device tree will take effect.
@@ -25,6 +26,8 @@ sudo reboot
 ## Load Driver 
 
 ```bash
+cd gpio_interrupt_test/src
+
 # for adlink-pps-gpio driver
 sudo insmod adlink-pps-gpio.ko
 
@@ -35,6 +38,7 @@ sudo insmod tegra194_gte_test.ko lic_irq=25 gpio_in=314 gpio_out=313
 ## Unload driver
 
 ```bash
+cd gpio_interrupt_test/
 sudo rmmod adlink-pps-gpio
 sudo rmmod tegra194_gte_test
 ```
