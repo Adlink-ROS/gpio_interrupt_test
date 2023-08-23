@@ -19,7 +19,7 @@
 
 
 / {
-    overlay-name = "PPS-GPIO Test Device Tree Overlay";
+    overlay-name = "ADLINK GPIO Device Tree Overlay";
     compatible = "nvidia,p3737-0000+p3701-0000", "nvidia,tegra234", "nvidia,tegra23x";
     jetson-header-name = "Jetson AGX CSI Connector";
 
@@ -45,54 +45,45 @@
             // Uncomment the line below to enable falling-edge assert.
             // assert-falling-edge;
           };
-          
-          // pps_out: pps_gpio_out {
-          //   // gpios = <&tegra_aon_gpio TEGRA234_AON_GPIO(BB, 1) GPIO_ACTIVE_LOW>;
-          //   // => TEGRA234_AON_GPIO(CC, 1) = 2*8 + 1 = 17
-          //   // => GPIO_ACTIVE_LOW = 1, GPIO_ACTIVE_HIGH = 0
-          //   gpios = <&tegra_aon_gpio 17 0>;
-          //   compatible = "adlink-pps-gpio";
-          //   status = "okay";
-          // };
                         
     	    fsync_int_p0 {
         		// gpios = <TEGRA234_MAIN_GPIO(P, 0) 0>;
         		// P: 14
         		// 14*8+0 = 112
-    		    gpios = <&tegra_main_gpio 112 0>;
-        		compatible = "hello";
+    		    dser-gpios = <&tegra_main_gpio 112 0>;
+        		compatible = "adlink-fsync-gpio";
     		    status = "ok";
-        		label = "port0";
+        		label = "dser0";
     	    };            
             
     	    fsync_int_h6 {
         		// gpios = <TEGRA234_MAIN_GPIO(H, 6) 0>;
         		// H: 7
         		// 7*8+6 = 62
-    		    gpios = <&tegra_main_gpio 62 0>;
-        		compatible = "hello";
-    		    status = "ok";
-    		    label = "port1";
+    		    dser-gpios = <&tegra_main_gpio 62 0>;
+            compatible = "adlink-fsync-gpio1";
+            status = "ok";
+    		    label = "dser1";
     	    };
 
           fsync_int_ac1 {
         		// gpios = <TEGRA234_MAIN_GPIO(AC, 1) 0>;
         		// AC: 20
         		// 20*8+1 = 161
-    		    gpios = <&tegra_main_gpio 161 0>;
-        		compatible = "hello";
-    		    status = "ok";
-    		    label = "port2";
+    		    dser-gpios = <&tegra_main_gpio 161 0>;
+            compatible = "adlink-fsync-gpio2";
+            status = "ok";
+    		    label = "dser2";
     	    };
 
     	    fsync_int_ac0 {
         		// gpios = <TEGRA234_MAIN_GPIO(AC, 1) 0>;
         		// AC: 20
         		// 20*8+0 = 160
-    		    gpios = <&tegra_main_gpio 160 0>;
-        		compatible = "hello";
+    		    dser-gpios = <&tegra_main_gpio 160 0>;
+        		compatible = "adlink-fsync-gpio3";
     		    status = "ok";
-    		    label = "port3";
+    		    label = "dser3";
     	    };            
             
         };

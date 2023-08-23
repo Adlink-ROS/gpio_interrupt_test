@@ -1,5 +1,5 @@
 
-DTS_FILE=pps-gpio
+DTS_FILE=adlink-gpio
 
 # parse overlay-name with escape chars into sed -n "s/^.*=\s*\(.*\);$/\1/p"
 OVERLAY_NAME := $(shell grep 'overlay-name' $(PWD)/$(DTS_FILE).dts | sed -n "s/^.*=\\s*\\(.*\\);$\/\\1/p")
@@ -13,7 +13,7 @@ endif
 $(warning TARGET_OVERLAY_HEADER=$(TARGET_OVERLAY_HEADER))
 
 
-obj-m := adlink-pps-gpio.o tegra194_gte_test.o
+obj-m := adlink-fsync-gpio.o adlink-pps-gpio.o tegra194_gte_test.o
 
 .PHONY: all
 all: modules dtbo
