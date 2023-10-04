@@ -1,6 +1,7 @@
 # The Test Drivers for GPIO Interrupt and GTE on NVIDIA Jetson Orin
 
 This repo includes the below drivers:
+- **adlink-base-gpio** - Driver for base gpio (from TCA953x IO expander)
 - **adlink-pps-gpio** - Driver for PPS-in and PPS-out
 - **adlink-fsync-gpio** - Driver for 4 FPGA trigger pins
 - **tegra194_gte_test** - Test NVIDIA GTE (Generic Timestamp Engine) https://docs.nvidia.com/jetson/archives/r35.4.1/DeveloperGuide/text/SD/Kernel/GenericTimestampEngine.html
@@ -29,6 +30,9 @@ sudo reboot
 ```bash
 cd gpio_interrupt_test/src
 
+# for adlink-base-gpio driver
+sudo insmod adlink-base-gpio.ko
+
 # for adlink-pps-gpio driver
 sudo insmod adlink-pps-gpio.ko
 
@@ -43,6 +47,7 @@ sudo insmod tegra194_gte_test.ko lic_irq=25 gpio_in=314 gpio_out=313
 
 ```bash
 cd gpio_interrupt_test/
+sudo rmmod adlink-base-gpio
 sudo rmmod adlink-pps-gpio
 sudo rmmod adlink-fsync-gpio
 sudo rmmod tegra194_gte_test
@@ -53,3 +58,12 @@ sudo rmmod tegra194_gte_test
 1. cat /proc/interrupts
 2. sudo cat /sys/kernel/debug/gpio
 3. dmesg
+
+## Troubleshooting
+
+The interrupt from base-gpio may not be triggered automatically, you have to keep polling the GPIO status.
+For example:
+
+```bash
+watch -n 0.1 sudo cat /sys/kernel/debug/gpio
+```
