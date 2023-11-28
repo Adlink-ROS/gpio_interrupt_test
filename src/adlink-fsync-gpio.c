@@ -11,6 +11,7 @@ struct fsync_gpio_device_data {
 	bool assert_falling_edge;
 	bool base_gpio;
 	time64_t time;
+	u64 nsec;
 };
 
 // Top ISR, deal with the real-time tasks
@@ -19,6 +20,7 @@ static irqreturn_t _irq_top_handler(int irq, void *data)
 	// Get the time stamp
 	struct fsync_gpio_device_data *_data = data;
 	_data->time = ktime_get_real_seconds();
+	_data->nsec = ktime_get_real_ns();
 		
 	return IRQ_WAKE_THREAD; // schedule the bottom half
 }
@@ -27,13 +29,14 @@ static irqreturn_t _irq_top_handler(int irq, void *data)
 static irqreturn_t _irq_bottom_handler(int irq, void *data)
 {
 	struct fsync_gpio_device_data *_data = data;
-    int sec, min, hour;
+    unsigned int ms, sec, min, hour;
 
 	// TODO: Consider to use spin_lock here
+	ms = (_data->nsec / 1000000) % 1000;
 	sec = _data->time % 60;
 	min = (_data->time / 60) % 60;
 	hour = (_data->time / 3600) % 24 + (sys_tz.tz_minuteswest / 60);
-	// printk("bottom-irq=%d, %02d:%02d:%02d", irq, hour, min, sec);
+	printk("bottom-irq=%d, %02u:%02u:%02u.%03u", irq, hour, min, sec, ms);
 	
 	return IRQ_HANDLED;
 }

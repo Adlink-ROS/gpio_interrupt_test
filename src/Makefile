@@ -13,7 +13,7 @@ endif
 $(warning TARGET_OVERLAY_HEADER=$(TARGET_OVERLAY_HEADER))
 
 
-obj-m := adlink-base-gpio.o adlink-fsync-gpio.o adlink-pps-gpio.o 
+obj-m := adlink-base-gpio.o adlink-fsync-gpio.o adlink-pps-gpio.o adlink-pps-mcu.o
 #tegra194_gte_test.o
 
 .PHONY: all

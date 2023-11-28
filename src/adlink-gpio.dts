@@ -30,13 +30,13 @@
             status = "okay";
             compatible = "adlink-pps-gpio";
             
-            // gpios = <&tegra_aon_gpio TEGRA234_AON_GPIO(BB, 1) GPIO_ACTIVE_LOW>;
+            // gpios = <&tegra_aon_gpio TEGRA234_AON_GPIO(BB, 1) GPIO_ACTIVE_HIGH>;
             // => TEGRA234_AON_GPIO(BB, 1) = 1*8 + 1 = 9
             // => GPIO_ACTIVE_LOW = 1, GPIO_ACTIVE_HIGH = 0
             pps-in-gpios = <&tegra_aon_gpio 9 0>;
             // interrupts-extended = <&tegra_aon_gpio 9 0>;
               
-            // gpios = <&tegra_aon_gpio TEGRA234_AON_GPIO(BB, 1) GPIO_ACTIVE_LOW>;
+            // gpios = <&tegra_aon_gpio TEGRA234_AON_GPIO(CC, 1) GPIO_ACTIVE_HIGH>;
             // => TEGRA234_AON_GPIO(CC, 1) = 2*8 + 1 = 17
             // => GPIO_ACTIVE_LOW = 1, GPIO_ACTIVE_HIGH = 0
             pps-out-gpios = <&tegra_aon_gpio 17 0>;
@@ -45,7 +45,21 @@
             // Uncomment the line below to enable falling-edge assert.
             // assert-falling-edge;
           };
-                        
+
+          adlink_pps_mcu {
+            status = "okay";
+            compatible = "adlink-pps-mcu";
+            
+            // gpios = <&tegra_aon_gpio TEGRA234_AON_GPIO(CC, 3) GPIO_ACTIVE_HIGH>;
+            // => TEGRA234_AON_GPIO(CC, 3) = 2*8 + 3 = 19
+            // => GPIO_ACTIVE_LOW = 1, GPIO_ACTIVE_HIGH = 0
+            pps-mcu-gpios = <&tegra_aon_gpio 19 0>;
+
+            // Default assert is indicated by a rising edge. 
+            // Uncomment the line below to enable falling-edge assert.
+            // assert-falling-edge;
+          };
+
     	    fsync_int_p0 {
         		// gpios = <TEGRA234_MAIN_GPIO(P, 0) 0>;
         		// P: 14
@@ -90,36 +104,36 @@
     };
     
     // following three overlays are used by GTE
-    fragment@1 {
-        target-path = "/gte@3aa0000";
-        __overlay__ {
-          status = "okay";
-        };
-    };
-    fragment@2 {
-        target-path = "/gte@c1e0000";
-        __overlay__ {
-          status = "okay";
-        };
-    };
-    fragment@3 {
-        target-path = "/gpio@c2f0000";
-        __overlay__ {
-          /delete-property/ use-timestamp;
-        };
-    };
+    // fragment@1 {
+    //     target-path = "/gte@3aa0000";
+    //     __overlay__ {
+    //       status = "okay";
+    //     };
+    // };
+    // fragment@2 {
+    //     target-path = "/gte@c1e0000";
+    //     __overlay__ {
+    //       status = "okay";
+    //     };
+    // };
+    // fragment@3 {
+    //     target-path = "/gpio@c2f0000";
+    //     __overlay__ {
+    //       /delete-property/ use-timestamp;
+    //     };
+    // };
     
     // example for RQX-590 base gpios
-    fragment@4 {
-      target-path = "/";
-      __overlay__ {
-        base_gpio0 { 
-            status = "okay";
-            compatible = "adlink-base-gpio";
-            label = "base-gpio0";
-            interrupt-gpios = <&pca9535_2 0 1>;
-        };
-      };
-    };
+    // fragment@4 {
+    //   target-path = "/";
+    //   __overlay__ {
+    //     base_gpio0 { 
+    //         status = "okay";
+    //         compatible = "adlink-base-gpio";
+    //         label = "base-gpio0";
+    //         interrupt-gpios = <&pca9535_2 0 1>;
+    //     };
+    //   };
+    // };
 
 };
