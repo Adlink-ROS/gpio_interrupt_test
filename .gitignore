@@ -1,0 +1,6 @@
+src/*.ko*
+src/*.mod*
+src/*.o*
+src/Module*
+src/.Module*
+src/*.dtbo
