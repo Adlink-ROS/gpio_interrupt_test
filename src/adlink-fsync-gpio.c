@@ -18,9 +18,10 @@ struct fsync_gpio_device_data {
 static irqreturn_t _irq_top_handler(int irq, void *data)
 {
 	// Get the time stamp
-	struct fsync_gpio_device_data *_data = data;
-	_data->time = ktime_get_real_seconds();
-	_data->nsec = ktime_get_real_ns();
+	struct fsync_gpio_device_data *priv = data;
+
+	priv->nsec = ktime_get_real_ns();
+	priv->time = ktime_get_real_seconds();
 		
 	return IRQ_WAKE_THREAD; // schedule the bottom half
 }
@@ -28,29 +29,30 @@ static irqreturn_t _irq_top_handler(int irq, void *data)
 // Bottom ISR, run the remain tasks after Top ISR
 static irqreturn_t _irq_bottom_handler(int irq, void *data)
 {
-	struct fsync_gpio_device_data *_data = data;
+	struct fsync_gpio_device_data *priv = data;
     unsigned int ms, sec, min, hour;
+    u64 nsec = priv->nsec % (u64) 1e9;
 
 	// TODO: Consider to use spin_lock here
-	ms = (_data->nsec / 1000000) % 1000;
-	sec = _data->time % 60;
-	min = (_data->time / 60) % 60;
-	hour = (_data->time / 3600) % 24 + (sys_tz.tz_minuteswest / 60);
-	printk("bottom-irq=%d, %02u:%02u:%02u.%03u", irq, hour, min, sec, ms);
-	
+	// ms = (priv->nsec / 1000000) % 1000;
+	sec = priv->time % 60;
+	min = (priv->time / 60) % 60;
+	hour = (priv->time / 3600) % 24 + (sys_tz.tz_minuteswest / 60);
+	printk("bottom-irq=%d, %02u:%02u:%02u.%09llu", irq, hour, min, sec, nsec);
+
 	return IRQ_HANDLED;
 }
 
 static int fsync_gpio_setup(struct device *dev)
 {
-	struct fsync_gpio_device_data *data = dev_get_drvdata(dev);
-	
-	data->assert_falling_edge =
+	struct fsync_gpio_device_data *priv = dev_get_drvdata(dev);
+
+	priv->assert_falling_edge =
 		device_property_read_bool(dev, "assert-falling-edge");
 		
-	data->fsync_gpio_desc = devm_gpiod_get(dev, "dser", GPIOD_IN);
-	if (IS_ERR(data->fsync_gpio_desc)) {
-		return dev_err_probe(dev, PTR_ERR(data->fsync_gpio_desc),
+	priv->fsync_gpio_desc = devm_gpiod_get(dev, "dser", GPIOD_IN);
+	if (IS_ERR(priv->fsync_gpio_desc)) {
+		return dev_err_probe(dev, PTR_ERR(priv->fsync_gpio_desc),
 				     "failed to request dser-gpios");
 	}
 
@@ -58,9 +60,9 @@ static int fsync_gpio_setup(struct device *dev)
 }
 
 static unsigned long
-get_irqf_trigger_flags(const struct fsync_gpio_device_data *data)
+get_irqf_trigger_flags(const struct fsync_gpio_device_data *priv)
 {
-	unsigned long flags = data->assert_falling_edge ?
+	unsigned long flags = priv->assert_falling_edge ?
 		IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING;
 
 	return flags;
@@ -68,16 +70,16 @@ get_irqf_trigger_flags(const struct fsync_gpio_device_data *data)
 
 static int fsync_gpio_probe(struct platform_device *pdev)
 {
-	struct fsync_gpio_device_data *data;
+	struct fsync_gpio_device_data *priv;
 	struct device *dev = &(pdev->dev);
 	int ret;
 
 	/* allocate space for device info */
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
-	if (!data)
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
 		return -ENOMEM;
 
-	dev_set_drvdata(dev, data);
+	dev_set_drvdata(dev, priv);
 
 	/* GPIO setup */
 	ret = fsync_gpio_setup(dev);
@@ -87,23 +89,23 @@ static int fsync_gpio_probe(struct platform_device *pdev)
     }
 
 	/* IRQ setup */
-	ret = gpiod_to_irq(data->fsync_gpio_desc);
+	ret = gpiod_to_irq(priv->fsync_gpio_desc);
 	if (ret < 0) {
 		dev_err(dev, "failed to map GPIO to IRQ: %d\n", ret);
 		return -EINVAL;
 	}
-	data->irq = ret;
+	priv->irq = ret;
 
-	if (data->base_gpio) {		
+	if (priv->base_gpio) {		
 		// base-gpio doesn't need an IRQ Top handler because the interrupt occurs on PCA953x
-		ret = devm_request_threaded_irq(dev, data->irq, NULL, _irq_bottom_handler,
-			get_irqf_trigger_flags(data), DRIVER_NAME, data);
+		ret = devm_request_threaded_irq(dev, priv->irq, NULL, _irq_bottom_handler,
+			get_irqf_trigger_flags(priv), DRIVER_NAME, priv);
 	} else {
-		ret = devm_request_threaded_irq(dev, data->irq, _irq_top_handler, _irq_bottom_handler,
-			get_irqf_trigger_flags(data), DRIVER_NAME, data);
+		ret = devm_request_threaded_irq(dev, priv->irq, _irq_top_handler, _irq_bottom_handler,
+			get_irqf_trigger_flags(priv), DRIVER_NAME, priv);
 	}
 	if (ret) {
-		dev_err(dev, "failed to acquire IRQ %d, ret=%d\n", data->irq, ret);
+		dev_err(dev, "failed to acquire IRQ %d, ret=%d\n", priv->irq, ret);
 		return -EINVAL;
 	}
 
@@ -114,10 +116,10 @@ static int fsync_gpio_probe(struct platform_device *pdev)
 
 static int fsync_gpio_remove(struct platform_device *pdev)
 {
-	struct fsync_gpio_device_data *data = platform_get_drvdata(pdev);
+	struct fsync_gpio_device_data *priv = platform_get_drvdata(pdev);
 
-	dev_info(&pdev->dev, "removed IRQ %d\n", data->irq);
-	
+	dev_info(&pdev->dev, "removed IRQ %d\n", priv->irq);
+
 	return 0;
 }
 
