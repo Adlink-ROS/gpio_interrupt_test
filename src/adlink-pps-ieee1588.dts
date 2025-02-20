@@ -1,0 +1,42 @@
+/dts-v1/;
+/plugin/;
+
+ /*
+ * Copyright (c) 2017-2022, NVIDIA CORPORATION.  All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+
+/ {
+    overlay-name = "PPS_IEEE1588 By I210 Device Tree Overlay";
+    compatible = "nvidia,p3737-0000+p3701-0000", "nvidia,tegra234", "nvidia,tegra23x";
+    jetson-header-name = "Jetson AGX CSI Connector";
+
+    fragment@0 {
+      target-path = "/";
+        __overlay__ {
+          adlink_pps_in {
+            status = "okay";
+            compatible = "adlink-pps-i210";
+            // gpios = <&tegra_aon_gpio TEGRA234_AON_GPIO(BB, 0) GPIO_ACTIVE_HIGH>;
+            // => TEGRA234_AON_GPIO(BB, 0) = 1*8 + 0 = 8
+            // => GPIO_ACTIVE_LOW = 1, GPIO_ACTIVE_HIGH = 0
+            pps-in-gpios = <&tegra_aon_gpio 8 0>;
+          };
+
+            
+        };
+    };
+
+};
